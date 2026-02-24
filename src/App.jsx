@@ -1,262 +1,431 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import IMLULogin from "./IMLULogin";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, AreaChart, Area,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  PieChart, Pie, Cell, AreaChart, Area, Legend,
 } from "recharts";
 
-// ─── Seed Data ────────────────────────────────────────────────────────────────
-const SEED_CASES = [
-  { id:1,  caseCode:"CR-2024-001", year:2024, court:"High Court",        region:"Nairobi",      county:"Nairobi",  caseType:"Criminal",       status:"Open",      closureType:"",          filingDate:"2024-01-15", lastUpdated:"2024-06-10", outcomes:"Pending hearing" },
-  { id:2,  caseCode:"CV-2023-045", year:2023, court:"Magistrate Court",  region:"Coast",         county:"Mombasa",  caseType:"Civil",          status:"Closed",    closureType:"Settled",   filingDate:"2023-03-22", lastUpdated:"2023-11-30", outcomes:"Parties reached settlement" },
-  { id:3,  caseCode:"FA-2024-012", year:2024, court:"Family Court",      region:"Rift Valley",  county:"Nakuru",   caseType:"Family",         status:"Open",      closureType:"",          filingDate:"2024-02-10", lastUpdated:"2024-07-01", outcomes:"Mediation ongoing" },
-  { id:4,  caseCode:"LA-2022-089", year:2022, court:"Labour Court",      region:"Western",       county:"Kisumu",   caseType:"Labour",         status:"Closed",    closureType:"Judgment",  filingDate:"2022-07-14", lastUpdated:"2023-05-20", outcomes:"Ruled in favour of claimant" },
-  { id:5,  caseCode:"CR-2024-078", year:2024, court:"High Court",        region:"Central",       county:"Kiambu",   caseType:"Criminal",       status:"Open",      closureType:"",          filingDate:"2024-04-03", lastUpdated:"2024-07-15", outcomes:"Trial in progress" },
-  { id:6,  caseCode:"CM-2023-033", year:2023, court:"High Court",        region:"Nairobi",       county:"Nairobi",  caseType:"Commercial",     status:"Closed",    closureType:"Judgment",  filingDate:"2023-05-10", lastUpdated:"2024-01-20", outcomes:"Judgment for plaintiff" },
-  { id:7,  caseCode:"LD-2024-004", year:2024, court:"Environment Court", region:"Eastern",       county:"Machakos", caseType:"Land",           status:"Open",      closureType:"",          filingDate:"2024-03-01", lastUpdated:"2024-06-28", outcomes:"Survey ordered" },
-  { id:8,  caseCode:"CR-2023-112", year:2023, court:"Magistrate Court",  region:"Nyanza",        county:"Kisii",    caseType:"Criminal",       status:"Closed",    closureType:"Acquittal", filingDate:"2023-08-15", lastUpdated:"2024-02-11", outcomes:"Accused acquitted" },
-  { id:9,  caseCode:"FA-2022-056", year:2022, court:"Family Court",      region:"Coast",         county:"Kilifi",   caseType:"Family",         status:"Closed",    closureType:"Settled",   filingDate:"2022-04-20", lastUpdated:"2023-01-08", outcomes:"Custody agreement signed" },
-  { id:10, caseCode:"CO-2024-009", year:2024, court:"High Court",        region:"Nairobi",       county:"Nairobi",  caseType:"Constitutional", status:"Open",      closureType:"",          filingDate:"2024-01-30", lastUpdated:"2024-07-10", outcomes:"Petition admitted" },
-  { id:11, caseCode:"LA-2023-077", year:2023, court:"Labour Court",      region:"Rift Valley",  county:"Eldoret",  caseType:"Labour",         status:"Adjourned", closureType:"",          filingDate:"2023-09-05", lastUpdated:"2024-05-17", outcomes:"Awaiting witnesses" },
-  { id:12, caseCode:"CV-2024-021", year:2024, court:"Magistrate Court",  region:"North Eastern", county:"Garissa",  caseType:"Civil",          status:"Open",      closureType:"",          filingDate:"2024-02-22", lastUpdated:"2024-07-02", outcomes:"Awaiting response" },
-  { id:13, caseCode:"CR-2022-188", year:2022, court:"High Court",        region:"Central",       county:"Nyeri",    caseType:"Criminal",       status:"Closed",    closureType:"Conviction",filingDate:"2022-11-03", lastUpdated:"2023-08-14", outcomes:"Convicted, 5 years imprisonment" },
-  { id:14, caseCode:"PR-2023-014", year:2023, court:"High Court",        region:"Western",       county:"Bungoma",  caseType:"Probate",        status:"Closed",    closureType:"Judgment",  filingDate:"2023-01-17", lastUpdated:"2023-10-29", outcomes:"Estate distributed per will" },
-  { id:15, caseCode:"LD-2023-061", year:2023, court:"Environment Court", region:"Nyanza",        county:"Homa Bay", caseType:"Land",           status:"On Appeal", closureType:"",          filingDate:"2023-06-08", lastUpdated:"2024-04-22", outcomes:"Appeal lodged at Court of Appeal" },
-];
-
-const SEED_REPORTS = [
-  { id:1, title:"Annual Justice Report 2023",        org:"Kenya Law Reform Commission",                   date:"2024-02-01", type:"Annual Report",     description:"Comprehensive review of judicial outcomes and case statistics for 2023." },
-  { id:2, title:"Gender & Access to Justice Study",  org:"International Justice Monitor",                 date:"2023-11-15", type:"Research",           description:"Analysis of gender disparities in court representation across 5 regions." },
-  { id:3, title:"Court Backlog Reduction Strategy",  org:"Judiciary Performance Unit",                    date:"2024-05-10", type:"Policy Paper",       description:"Strategic framework for reducing case backlog in magistrate and high courts." },
-  { id:4, title:"Q1 2024 Case Statistics Bulletin",  org:"National Council on Administration of Justice", date:"2024-04-30", type:"Quarterly Bulletin", description:"Quarterly statistical summary of filed, concluded and pending cases." },
-  { id:5, title:"Access to Justice in Arid Regions", org:"UNHCR Kenya",                                  date:"2024-01-20", type:"Research",           description:"Study on justice access barriers in North Eastern and arid counties." },
-];
-
-const COURTS       = ["High Court","Magistrate Court","Family Court","Labour Court","Environment Court","Appeals Court"];
-const REGIONS      = ["Nairobi","Coast","Rift Valley","Central","Western","Eastern","North Eastern","Nyanza"];
-const COUNTIES     = ["Nairobi","Mombasa","Nakuru","Kisumu","Kiambu","Machakos","Eldoret","Nyeri","Kisii","Thika","Kilifi","Garissa","Bungoma","Homa Bay","Meru"];
-const CASE_TYPES   = ["Criminal","Civil","Family","Labour","Constitutional","Commercial","Land","Probate"];
-const STATUSES     = ["Open","Closed","Adjourned","On Appeal"];
-const CLOSURE_TYPES= ["Settled","Judgment","Withdrawn","Dismissed","Acquittal","Conviction"];
-const PIE_COLORS   = ["#1d4ed8","#dc2626","#10b981","#f59e0b","#8b5cf6","#06b6d4","#f43f5e","#6366f1"];
-const USERS        = [
-  { username:"admin", password:"admin123", role:"admin", name:"Admin User" },
-  { username:"staff", password:"staff123", role:"staff", name:"Staff User" },
-];
-
-// ─── Excel Export ─────────────────────────────────────────────────────────────
-function exportExcel(cases) {
-  const headers = ["Case Code","Year","Court","Region","County","Case Type","Status","Closure Type","Filing Date","Last Updated","Outcomes"];
-  const rows = cases.map(c => [c.caseCode,c.year,c.court,c.region,c.county,c.caseType,c.status,c.closureType,c.filingDate,c.lastUpdated,c.outcomes]);
-  const tsv = [headers,...rows].map(r=>r.join("\t")).join("\n");
-  const blob = new Blob([tsv],{type:"application/vnd.ms-excel;charset=utf-8"});
-  const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="imlu-cases.xls"; a.click();
-}
-
-// ─── Shared Styles ────────────────────────────────────────────────────────────
-const IS = { width:"100%", background:"#060d1a", border:"1px solid #1e3a5f", borderRadius:8, padding:"9px 12px", color:"#e2e8f0", fontSize:13, boxSizing:"border-box", outline:"none", fontFamily:"inherit" };
-const LS = { display:"block", color:"#3a5a7a", fontSize:10.5, textTransform:"uppercase", letterSpacing:1.3, marginBottom:5, fontWeight:700 };
-
-function Badge({ status }) {
-  const map = { Open:{bg:"#042012",color:"#4ade80",bd:"#14532d"}, Closed:{bg:"#141414",color:"#9ca3af",bd:"#374151"}, Adjourned:{bg:"#2d1800",color:"#fbbf24",bd:"#78350f"}, "On Appeal":{bg:"#060f2e",color:"#93c5fd",bd:"#1e3a8a"} };
-  const s = map[status]||map.Closed;
-  return <span style={{ background:s.bg, color:s.color, border:`1px solid ${s.bd}`, borderRadius:20, padding:"3px 11px", fontSize:11, fontWeight:700 }}>{status}</span>;
-}
-
-const CTip = ({ active, payload, label }) => {
-  if (!active||!payload?.length) return null;
-  return <div style={{ background:"#0a1628", border:"1px solid #1e3a5f", borderRadius:10, padding:"10px 16px" }}><p style={{ color:"#64748b", fontSize:11, marginBottom:4 }}>{label}</p>{payload.map((p,i)=><p key={i} style={{ color:p.color||"#1d4ed8", fontWeight:700 }}>{p.name||p.dataKey}: {p.value}</p>)}</div>;
+// ─── Theme: Blue / White / Red (Light) ───────────────────────────────────────
+const T = {
+  bg:         "#f0f4ff",
+  bgCard:     "#ffffff",
+  bgRow1:     "#ffffff",
+  bgRow2:     "#f8faff",
+  bgHover:    "#eef2ff",
+  border:     "#dbeafe",
+  borderMid:  "#93c5fd",
+  blue:       "#1d4ed8",
+  blueLt:     "#3b82f6",
+  bluePale:   "#eff6ff",
+  blueXlt:    "#bfdbfe",
+  red:        "#dc2626",
+  redLt:      "#ef4444",
+  redPale:    "#fff1f2",
+  white:      "#ffffff",
+  text:       "#0f172a",
+  textMid:    "#334155",
+  textDim:    "#64748b",
+  textFade:   "#94a3b8",
+  sidebar:    "#1e3a8a",
+  sidebarDk:  "#172554",
 };
 
-// ─── Region Heatmap ───────────────────────────────────────────────────────────
-function RegionHeatmap({ cases }) {
-  const [hov, setHov] = useState(null);
-  const counts = {};
-  REGIONS.forEach(r => counts[r] = cases.filter(c=>c.region===r).length);
-  const max = Math.max(...Object.values(counts),1);
-  const getClr = n => { const r=n/max; if(!n)return"#060e1e"; if(r<0.2)return"#0c243f"; if(r<0.4)return"#0e3866"; if(r<0.6)return"#1a5ca0"; if(r<0.8)return"#2563eb"; return"#dc2626"; };
-  const paths = {
-    "North Eastern":"M 62 4 L 97 4 L 97 32 L 78 32 L 62 28 Z",
-    "Eastern":      "M 58 28 L 78 32 L 97 32 L 97 62 L 82 62 L 58 56 Z",
-    "Coast":        "M 58 56 L 82 62 L 86 90 L 68 92 L 56 80 Z",
-    "Rift Valley":  "M 18 16 L 58 16 L 58 28 L 60 44 L 48 56 L 36 50 L 18 52 Z",
-    "Nairobi":      "M 48 54 L 56 54 L 58 62 L 50 64 L 46 60 Z",
-    "Central":      "M 44 40 L 60 40 L 60 56 L 48 56 L 44 50 Z",
-    "Nyanza":       "M 18 52 L 36 50 L 40 62 L 46 70 L 36 80 L 18 74 Z",
-    "Western":      "M 8 38 L 18 16 L 18 52 L 10 60 Z",
+const CHART_COLORS = ["#1d4ed8","#dc2626","#3b82f6","#ef4444","#60a5fa","#fca5a5","#1e40af","#b91c1c","#93c5fd","#f87171"];
+
+// ─── Options ──────────────────────────────────────────────────────────────────
+const CASE_TYPES     = ["Torture","CIDT","Sexual Violence","Extrajudicial Killing","Enforced Disappearance","Arbitrary Detention","Police Brutality","Other"];
+const STATUSES       = ["Open","Closed","Adjourned","On Appeal","Pending Investigation"];
+const REGIONS        = ["Nairobi","Coast","Rift Valley","Central","Western","Eastern","North Eastern","Nyanza"];
+const COUNTIES       = ["Nairobi","Mombasa","Nakuru","Kisumu","Kiambu","Machakos","Eldoret","Nyeri","Kisii","Kilifi","Garissa","Bungoma","Homa Bay","Meru","Thika","Kakamega","Embu","Isiolo","Marsabit","Wajir","Mandera","Lamu","Taita Taveta","Kwale","Tana River"];
+const GENDERS        = ["Male","Female","Non-binary","Prefer not to say"];
+const PERPETRATORS   = ["Police Officer","Prison Warder","Military Personnel","Security Agent","Unknown State Actor","Non-State Actor","Other"];
+const TORTURE_METHODS= ["Beating","Electrocution","Suffocation","Waterboarding","Stress Positions","Denial of Food/Water","Solitary Confinement","Sexual Violence","Psychological Torture","Other"];
+const SOURCES        = ["Victim/Survivor","Family Member","NGO Referral","Legal Aid","Hospital","Community Leader","Newspaper","Other"];
+const SERVICES       = ["Legal Representation","Medical Documentation","Psychosocial Support","Rehabilitation","Litigation Support","Documentation Only","Referral","Other"];
+const RIGHTS         = ["Right to Life","Right Against Torture","Right to Fair Trial","Right to Liberty","Right to Dignity","Right to Health","Freedom from Discrimination","Right to Information","Other"];
+const OUTCOMES_LIST  = ["Case Withdrawn","Acquittal","Conviction","Settlement","Referral","Ongoing","Closed - No Action","Transferred"];
+const CONSENT_OPTS   = ["Yes","No","Pending"];
+const VERIF_OPTS     = ["Verified","Unverified","Partially Verified","Under Review"];
+
+// ─── Seed Cases ───────────────────────────────────────────────────────────────
+const SEED_CASES = [
+  {id:1, caseCode:"IMLU-2024-001",caseType:"Torture",              caseStatus:"Open",                 filingDate:"2024-01-15",region:"Nairobi",      county:"Nairobi",  age:32,gender:"Male",     consentObtained:"Yes",    allegedPerpetrator:"Police Officer",      tortureMethod:"Beating",               source:"Victim/Survivor",  verification:"Verified",           serviceOffered:"Legal Representation",  incidentLocation:"Pangani Police Station",  rightsViolated:"Right Against Torture", outcomes:"Ongoing"},
+  {id:2, caseCode:"IMLU-2024-002",caseType:"Arbitrary Detention",  caseStatus:"Closed",               filingDate:"2024-02-10",region:"Coast",         county:"Mombasa",  age:27,gender:"Female",   consentObtained:"Yes",    allegedPerpetrator:"Security Agent",      tortureMethod:"Solitary Confinement",  source:"Family Member",    verification:"Verified",           serviceOffered:"Documentation Only",    incidentLocation:"Shimo la Tewa Prison",    rightsViolated:"Right to Liberty",      outcomes:"Settlement"},
+  {id:3, caseCode:"IMLU-2024-003",caseType:"Police Brutality",     caseStatus:"Open",                 filingDate:"2024-03-05",region:"Rift Valley",   county:"Nakuru",   age:19,gender:"Male",     consentObtained:"Yes",    allegedPerpetrator:"Police Officer",      tortureMethod:"Beating",               source:"NGO Referral",     verification:"Partially Verified", serviceOffered:"Medical Documentation", incidentLocation:"Nakuru CBD",              rightsViolated:"Right to Dignity",      outcomes:"Ongoing"},
+  {id:4, caseCode:"IMLU-2024-004",caseType:"Sexual Violence",      caseStatus:"On Appeal",            filingDate:"2023-11-20",region:"Western",       county:"Kisumu",   age:24,gender:"Female",   consentObtained:"Yes",    allegedPerpetrator:"Police Officer",      tortureMethod:"Sexual Violence",       source:"Hospital",         verification:"Verified",           serviceOffered:"Psychosocial Support",  incidentLocation:"Kisumu Central",          rightsViolated:"Right to Dignity",      outcomes:"Conviction"},
+  {id:5, caseCode:"IMLU-2024-005",caseType:"Extrajudicial Killing",caseStatus:"Pending Investigation",filingDate:"2024-04-18",region:"Nairobi",       county:"Nairobi",  age:35,gender:"Male",     consentObtained:"Yes",    allegedPerpetrator:"Police Officer",      tortureMethod:"Other",                 source:"Community Leader", verification:"Under Review",       serviceOffered:"Litigation Support",    incidentLocation:"Mathare",                 rightsViolated:"Right to Life",         outcomes:"Ongoing"},
+  {id:6, caseCode:"IMLU-2024-006",caseType:"CIDT",                 caseStatus:"Adjourned",            filingDate:"2024-05-02",region:"Eastern",       county:"Machakos", age:41,gender:"Male",     consentObtained:"Pending",allegedPerpetrator:"Prison Warder",       tortureMethod:"Denial of Food/Water",  source:"Legal Aid",        verification:"Unverified",         serviceOffered:"Referral",              incidentLocation:"Machakos GK Prison",      rightsViolated:"Right to Health",       outcomes:"Ongoing"},
+  {id:7, caseCode:"IMLU-2023-088",caseType:"Torture",              caseStatus:"Closed",               filingDate:"2023-07-14",region:"Coast",         county:"Kilifi",   age:30,gender:"Female",   consentObtained:"Yes",    allegedPerpetrator:"Military Personnel",  tortureMethod:"Stress Positions",      source:"Victim/Survivor",  verification:"Verified",           serviceOffered:"Rehabilitation",        incidentLocation:"Malindi",                 rightsViolated:"Right Against Torture", outcomes:"Settlement"},
+  {id:8, caseCode:"IMLU-2023-049",caseType:"Enforced Disappearance",caseStatus:"Open",               filingDate:"2023-09-30",region:"North Eastern", county:"Garissa",  age:22,gender:"Male",     consentObtained:"No",     allegedPerpetrator:"Unknown State Actor", tortureMethod:"Psychological Torture", source:"Family Member",    verification:"Partially Verified", serviceOffered:"Legal Representation",  incidentLocation:"Garissa Town",            rightsViolated:"Right to Liberty",      outcomes:"Ongoing"},
+  {id:9, caseCode:"IMLU-2023-071",caseType:"Police Brutality",     caseStatus:"Closed",               filingDate:"2023-05-11",region:"Nyanza",        county:"Kisii",    age:28,gender:"Male",     consentObtained:"Yes",    allegedPerpetrator:"Police Officer",      tortureMethod:"Beating",               source:"Newspaper",        verification:"Verified",           serviceOffered:"Medical Documentation", incidentLocation:"Kisii Town",              rightsViolated:"Right to Dignity",      outcomes:"Conviction"},
+  {id:10,caseCode:"IMLU-2024-010",caseType:"Arbitrary Detention",  caseStatus:"Open",                 filingDate:"2024-06-01",region:"Central",       county:"Kiambu",   age:38,gender:"Non-binary",consentObtained:"Yes",    allegedPerpetrator:"Security Agent",      tortureMethod:"Suffocation",           source:"Legal Aid",        verification:"Verified",           serviceOffered:"Litigation Support",    incidentLocation:"Thika",                   rightsViolated:"Right to Fair Trial",   outcomes:"Ongoing"},
+  {id:11,caseCode:"IMLU-2024-011",caseType:"Torture",              caseStatus:"Open",                 filingDate:"2024-06-15",region:"Nairobi",       county:"Nairobi",  age:45,gender:"Male",     consentObtained:"Yes",    allegedPerpetrator:"Police Officer",      tortureMethod:"Electrocution",         source:"NGO Referral",     verification:"Verified",           serviceOffered:"Legal Representation",  incidentLocation:"Industrial Area Police",  rightsViolated:"Right Against Torture", outcomes:"Ongoing"},
+  {id:12,caseCode:"IMLU-2024-012",caseType:"Sexual Violence",      caseStatus:"Open",                 filingDate:"2024-07-01",region:"Rift Valley",   county:"Eldoret",  age:20,gender:"Female",   consentObtained:"Yes",    allegedPerpetrator:"Security Agent",      tortureMethod:"Sexual Violence",       source:"Hospital",         verification:"Partially Verified", serviceOffered:"Psychosocial Support",  incidentLocation:"Eldoret Town",            rightsViolated:"Right to Dignity",      outcomes:"Ongoing"},
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const IS = {
+  width:"100%", background:"#fff", border:`1px solid ${T.border}`,
+  borderRadius:8, padding:"9px 12px", color:T.text, fontSize:13,
+  boxSizing:"border-box", outline:"none", fontFamily:"inherit",
+};
+const LS = {
+  display:"block", color:T.blue, fontSize:10.5, textTransform:"uppercase",
+  letterSpacing:1.2, marginBottom:5, fontWeight:700,
+};
+
+const CTip = ({active,payload,label}) => {
+  if(!active||!payload?.length) return null;
+  return(
+    <div style={{background:"#fff",border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 16px",boxShadow:"0 4px 20px rgba(29,78,216,0.12)"}}>
+      <p style={{color:T.blue,fontSize:11,marginBottom:4,fontWeight:600}}>{label}</p>
+      {payload.map((p,i)=><p key={i} style={{color:p.color||T.blue,fontWeight:700,fontSize:13}}>{p.name||p.dataKey}: {p.value}</p>)}
+    </div>
+  );
+};
+
+function Badge({status}){
+  const m={
+    "Open":                 {bg:"#eff6ff",c:"#1d4ed8",bd:"#bfdbfe"},
+    "Closed":               {bg:"#f0fdf4",c:"#16a34a",bd:"#bbf7d0"},
+    "Adjourned":            {bg:"#fffbeb",c:"#d97706",bd:"#fde68a"},
+    "On Appeal":            {bg:"#fff1f2",c:"#dc2626",bd:"#fecaca"},
+    "Pending Investigation":{bg:"#f0f9ff",c:"#0369a1",bd:"#bae6fd"},
   };
-  const centers = {
-    "North Eastern":{x:76,y:16}, "Eastern":{x:72,y:44}, "Coast":{x:72,y:72},
-    "Rift Valley":{x:36,y:36},   "Nairobi":{x:52,y:60}, "Central":{x:52,y:47},
-    "Nyanza":{x:30,y:62},        "Western":{x:14,y:40},
-  };
-  return (
-    <div style={{ background:"#080e1e", border:"1px solid #1a3050", borderRadius:14, padding:20 }}>
-      <h3 style={{ color:"#dc2626", fontSize:12.5, textTransform:"uppercase", letterSpacing:1.6, fontWeight:700, marginBottom:14 }}>📍 Regional Case Heatmap</h3>
-      <div style={{ display:"flex", gap:20, alignItems:"flex-start" }}>
-        <svg viewBox="0 0 100 96" style={{ width:220, height:211, display:"block", flex:"0 0 auto" }}>
-          <rect width="100" height="96" rx="6" fill="#040810"/>
-          {Object.entries(paths).map(([r,d])=>(
-            <path key={r} d={d} fill={getClr(counts[r])} stroke="#0a1828" strokeWidth={0.7}
-              style={{ cursor:"pointer", transition:"opacity 0.2s" }} opacity={hov&&hov!==r?0.4:1}
-              onMouseEnter={()=>setHov(r)} onMouseLeave={()=>setHov(null)}/>
-          ))}
-          {Object.entries(centers).map(([r,{x,y}])=>(
-            <g key={r}>
-              <text x={x} y={y} textAnchor="middle" fontSize={3.2} fill={hov===r?"#fff":"#94a3b8"} fontFamily="DM Sans,sans-serif" fontWeight="600" style={{pointerEvents:"none"}}>{r.replace(" Eastern","E.").replace("Rift Valley","RV").replace("North ","N.")}</text>
-              <text x={x} y={y+4} textAnchor="middle" fontSize={3.5} fill={hov===r?"#dc2626":getClr(counts[r])} fontFamily="DM Sans,sans-serif" fontWeight="800" style={{pointerEvents:"none"}}>{counts[r]}</text>
-            </g>
-          ))}
-        </svg>
-        <div style={{ flex:1 }}>
-          {REGIONS.map(r=>{
-            const c=counts[r], pct=Math.round((c/max)*100)||3;
-            return (
-              <div key={r} onMouseEnter={()=>setHov(r)} onMouseLeave={()=>setHov(null)}
-                style={{ marginBottom:8, padding:"5px 8px", borderRadius:7, background:hov===r?"#0d1f3c":"transparent", transition:"background 0.2s", cursor:"default" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                  <span style={{ color:hov===r?"#dc2626":"#64748b", fontSize:12, fontWeight:600 }}>{r}</span>
-                  <span style={{ color:getClr(c), fontWeight:800, fontSize:13 }}>{c}</span>
-                </div>
-                <div style={{ background:"#0d1526", borderRadius:4, height:5 }}>
-                  <div style={{ background:getClr(c), borderRadius:4, height:5, width:`${pct}%`, transition:"width 0.5s ease" }}/>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+  const s=m[status]||m["Closed"];
+  return <span style={{background:s.bg,color:s.c,border:`1px solid ${s.bd}`,borderRadius:20,padding:"3px 11px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{status}</span>;
+}
+
+function exportExcel(cases){
+  const h=["Case Code","Case Type","Case Status","Filing Date","Region","County","Age","Gender","Consent Obtained","Alleged Perpetrator","Torture Method","Source","Verification","Service Offered","Incident Location","Rights Violated","Outcomes"];
+  const r=cases.map(c=>[c.caseCode,c.caseType,c.caseStatus,c.filingDate,c.region,c.county,c.age,c.gender,c.consentObtained,c.allegedPerpetrator,c.tortureMethod,c.source,c.verification,c.serviceOffered,c.incidentLocation,c.rightsViolated,c.outcomes]);
+  const blob=new Blob([[h,...r].map(row=>row.join("\t")).join("\n")],{type:"application/vnd.ms-excel;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="imlu-cases.xls";a.click();
+}
+
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
+function KPICard({label,value,sub,icon,color,trend}){
+  return(
+    <div style={{background:T.white,border:`1px solid ${T.border}`,borderRadius:14,padding:"18px 20px",position:"relative",overflow:"hidden",flex:"1 1 110px",minWidth:0,boxShadow:"0 2px 12px rgba(29,78,216,0.07)",borderTop:`3px solid ${color}`}}>
+      <div style={{position:"absolute",top:14,right:16,fontSize:24,opacity:0.12}}>{icon}</div>
+      <div style={{fontSize:10,color:color,textTransform:"uppercase",letterSpacing:1.5,fontWeight:800,marginBottom:6}}>{label}</div>
+      <div style={{fontSize:36,fontWeight:800,color:T.text,fontFamily:"'Crimson Pro',serif",lineHeight:1}}>{value}</div>
+      {sub&&<div style={{fontSize:11,color:T.textFade,marginTop:5}}>{sub}</div>}
+      {trend!==undefined&&<div style={{fontSize:11,color:trend>=0?"#16a34a":"#dc2626",marginTop:4,fontWeight:700}}>{trend>=0?"▲":"▼"} {Math.abs(trend)}% vs last month</div>}
     </div>
   );
 }
 
+// ─── Pipeline ─────────────────────────────────────────────────────────────────
+function Pipeline({cases}){
+  const steps=[
+    {label:"Total Filed",  count:cases.length,                                            color:T.blue},
+    {label:"Verified",     count:cases.filter(c=>c.verification==="Verified").length,     color:"#1e40af"},
+    {label:"In Service",   count:cases.filter(c=>c.serviceOffered).length,               color:"#1e3a8a"},
+    {label:"Open",         count:cases.filter(c=>c.caseStatus==="Open").length,           color:T.red},
+    {label:"Closed",       count:cases.filter(c=>c.caseStatus==="Closed").length,         color:"#15803d"},
+  ];
+  return(
+    <div style={{display:"flex",marginBottom:20,borderRadius:12,overflow:"hidden",border:`1px solid ${T.border}`,boxShadow:"0 2px 12px rgba(29,78,216,0.08)"}}>
+      {steps.map((s,i)=>(
+        <div key={s.label} style={{flex:1,background:s.color,padding:"14px 8px",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",position:"relative",borderRight:i<steps.length-1?"1px solid rgba(255,255,255,0.2)":"none"}}>
+          {i<steps.length-1&&<div style={{position:"absolute",right:-1,top:"50%",transform:"translateY(-50%)",width:0,height:0,borderTop:"18px solid transparent",borderBottom:"18px solid transparent",borderLeft:`13px solid ${s.color}`,zIndex:2}}/>}
+          <div style={{fontSize:26,fontWeight:800,color:"#fff",fontFamily:"'Crimson Pro',serif",lineHeight:1}}>{s.count}</div>
+          <div style={{fontSize:9.5,color:"rgba(255,255,255,0.88)",textTransform:"uppercase",letterSpacing:1.1,fontWeight:700,marginTop:4,textAlign:"center"}}>{s.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Panel ────────────────────────────────────────────────────────────────────
+const Panel = ({children,title,emoji}) => (
+  <div style={{background:T.white,border:`1px solid ${T.border}`,borderRadius:14,padding:18,boxShadow:"0 2px 12px rgba(29,78,216,0.06)"}}>
+    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:14,paddingBottom:10,borderBottom:`1px solid ${T.border}`}}>
+      <span style={{fontSize:14}}>{emoji}</span>
+      <h3 style={{color:T.blue,fontSize:11,textTransform:"uppercase",letterSpacing:1.6,fontWeight:800,margin:0}}>{title}</h3>
+    </div>
+    {children}
+  </div>
+);
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-function Dashboard({ cases }) {
-  const open=cases.filter(c=>c.status==="Open").length;
-  const closed=cases.filter(c=>c.status==="Closed").length;
-  const adj=cases.filter(c=>c.status==="Adjourned").length;
-  const appeal=cases.filter(c=>c.status==="On Appeal").length;
-  const byType=CASE_TYPES.map(t=>({name:t,count:cases.filter(c=>c.caseType===t).length})).filter(x=>x.count);
-  const byCourt=COURTS.map(c=>({name:c.replace(" Court",""),count:cases.filter(x=>x.court===c).length})).filter(x=>x.count);
-  const byYear=[2022,2023,2024].map(y=>({ year:String(y), Open:cases.filter(c=>c.year===y&&c.status==="Open").length, Closed:cases.filter(c=>c.year===y&&c.status==="Closed").length, Other:cases.filter(c=>c.year===y&&!["Open","Closed"].includes(c.status)).length }));
-  const statusPie=[{name:"Open",value:open},{name:"Closed",value:closed},{name:"Adjourned",value:adj},{name:"On Appeal",value:appeal}].filter(x=>x.value);
-  const radar=byType.map(t=>({subject:t.name,value:t.count,fullMark:cases.length}));
-  const stats=[{label:"Total Cases",value:cases.length,accent:"#1d4ed8"},{label:"Open",value:open,accent:"#10b981"},{label:"Closed",value:closed,accent:"#6b7280"},{label:"On Appeal",value:appeal,accent:"#dc2626"},{label:"Adjourned",value:adj,accent:"#f59e0b"}];
-  const panel=(children,title,emoji)=>(<div style={{ background:"#080e1e", border:"1px solid #1a3050", borderRadius:14, padding:20 }}><h3 style={{ color:"#dc2626", fontSize:12.5, textTransform:"uppercase", letterSpacing:1.6, fontWeight:700, marginBottom:14, marginTop:0 }}>{emoji} {title}</h3>{children}</div>);
-  return (
+function Dashboard({cases}){
+  const open    =cases.filter(c=>c.caseStatus==="Open").length;
+  const closed  =cases.filter(c=>c.caseStatus==="Closed").length;
+  const verified=cases.filter(c=>c.verification==="Verified").length;
+  const pending =cases.filter(c=>c.caseStatus==="Pending Investigation").length;
+  const appeal  =cases.filter(c=>c.caseStatus==="On Appeal").length;
+
+  const byType  =CASE_TYPES.map(t=>({name:t.replace("Extrajudicial ","EJ ").replace("Arbitrary ","Arb. ").replace("Enforced ","Enf. "),count:cases.filter(c=>c.caseType===t).length})).filter(x=>x.count);
+  const byRegion=REGIONS.map(r=>({name:r,Female:cases.filter(c=>c.region===r&&c.gender==="Female").length,Male:cases.filter(c=>c.region===r&&c.gender==="Male").length})).filter(x=>x.Female+x.Male);
+  const byStatus=[{name:"Open",value:open},{name:"Closed",value:closed},{name:"Adjourned",value:cases.filter(c=>c.caseStatus==="Adjourned").length},{name:"On Appeal",value:appeal},{name:"Pending",value:pending}].filter(x=>x.value);
+  const byGender=GENDERS.map(g=>({name:g,value:cases.filter(c=>c.gender===g).length})).filter(x=>x.value);
+  const bySource=SOURCES.map(s=>({name:s,count:cases.filter(c=>c.source===s).length})).filter(x=>x.count);
+  const byPerp  =PERPETRATORS.map(p=>({name:p.replace(" Personnel","").replace(" Officer","").replace(" State Actor",""),Open:cases.filter(c=>c.allegedPerpetrator===p&&c.caseStatus==="Open").length,Closed:cases.filter(c=>c.allegedPerpetrator===p&&c.caseStatus==="Closed").length})).filter(x=>x.Open+x.Closed);
+  const byMethod=TORTURE_METHODS.map(m=>({name:m.replace(" Confinement","").replace("Stress ",""),count:cases.filter(c=>c.tortureMethod===m).length})).filter(x=>x.count);
+  const byMonth =["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m,i)=>({month:m,Open:cases.filter(c=>c.caseStatus==="Open"&&new Date(c.filingDate).getMonth()===i).length,Closed:cases.filter(c=>c.caseStatus==="Closed"&&new Date(c.filingDate).getMonth()===i).length}));
+
+  return(
     <div>
-      <div style={{ marginBottom:24 }}>
-        <h2 style={{ fontFamily:"'Crimson Pro',serif", fontSize:34, color:"#e2e8f0", fontWeight:700, margin:0 }}>Justice Analytics</h2>
-        <p style={{ color:"#2a4a6a", fontSize:13, marginTop:5 }}>IMLU Case Registry — Public statistics dashboard</p>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22,paddingBottom:18,borderBottom:`2px solid ${T.border}`}}>
+        <div>
+          <h2 style={{fontFamily:"'Crimson Pro',serif",fontSize:30,color:T.text,fontWeight:700,margin:0}}>Case Analysis Dashboard</h2>
+          <p style={{color:T.textDim,fontSize:12,marginTop:5}}>IMLU Staff Analytics — {new Date().toLocaleDateString("en-KE",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</p>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <div style={{background:T.bluePale,border:`1px solid ${T.blueXlt}`,borderRadius:8,padding:"7px 14px",fontSize:12,color:T.blue,fontWeight:700}}>📊 {cases.length} Total Cases</div>
+          <div style={{background:T.redPale,border:`1px solid #fecaca`,borderRadius:8,padding:"7px 14px",fontSize:12,color:T.red,fontWeight:700}}>🔴 {open} Open</div>
+        </div>
       </div>
-      <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:20 }}>
-        {stats.map(s=>(
-          <div key={s.label} style={{ flex:"1 1 100px", background:`linear-gradient(145deg,${s.accent}14,#060c18)`, border:`1px solid ${s.accent}30`, borderRadius:14, padding:"18px 20px", position:"relative", overflow:"hidden" }}>
-            <div style={{ fontSize:38, fontWeight:800, color:s.accent, fontFamily:"'Crimson Pro',serif", lineHeight:1 }}>{s.value}</div>
-            <div style={{ fontSize:10.5, color:"#2a4a6a", marginTop:6, letterSpacing:1.3, textTransform:"uppercase", fontWeight:700 }}>{s.label}</div>
-          </div>
-        ))}
+
+      <Pipeline cases={cases}/>
+
+      {/* KPI Cards */}
+      <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:20}}>
+        <KPICard label="Total Cases"  value={cases.length} icon="📁" color={T.blue}   sub={`${verified} verified`} trend={8}/>
+        <KPICard label="Open Cases"   value={open}         icon="📂" color={T.blueLt} sub="Active investigations"  trend={3}/>
+        <KPICard label="Closed"       value={closed}       icon="✅" color="#16a34a"  sub="Concluded cases"        trend={-2}/>
+        <KPICard label="Pending"      value={pending}      icon="⏳" color="#d97706"  sub="Awaiting investigation"/>
+        <KPICard label="On Appeal"    value={appeal}       icon="⚖" color={T.red}    sub="Appellate courts"/>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"1.5fr 1fr", gap:16, marginBottom:16 }}>
-        <RegionHeatmap cases={cases}/>
-        {panel(<>
-          <ResponsiveContainer width="100%" height={185}>
-            <PieChart><Pie data={statusPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={72} innerRadius={36} paddingAngle={3} label={({name,percent})=>`${name} ${(percent*100).toFixed(0)}%`} labelLine={false} fontSize={10}>{statusPie.map((_,i)=><Cell key={i} fill={PIE_COLORS[i]}/>)}</Pie><Tooltip content={<CTip/>}/></PieChart>
+
+      {/* Row 1 */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1.6fr 1fr",gap:14,marginBottom:14}}>
+        <Panel title="Cases by Status" emoji="🔵">
+          <ResponsiveContainer width="100%" height={190}>
+            <PieChart>
+              <Pie data={byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={72} innerRadius={36} paddingAngle={3} label={({name,percent})=>`${(percent*100).toFixed(0)}%`} labelLine={false} fontSize={10}>
+                {byStatus.map((_,i)=><Cell key={i} fill={CHART_COLORS[i]}/>)}
+              </Pie>
+              <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:11,color:T.textDim}}/>
+            </PieChart>
           </ResponsiveContainer>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginTop:6 }}>
-            {statusPie.map((s,i)=>(<span key={s.name} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11.5, color:"#64748b" }}><span style={{ width:9, height:9, borderRadius:"50%", background:PIE_COLORS[i], display:"inline-block" }}/>{s.name} ({s.value})</span>))}
-          </div>
-        </>,"Status Breakdown","🔵")}
+        </Panel>
+
+        <Panel title="Cases by Perpetrator & Status" emoji="👤">
+          <ResponsiveContainer width="100%" height={190}>
+            <BarChart data={byPerp} margin={{left:-10,right:10}}>
+              <CartesianGrid strokeDasharray="3 3" stroke={T.border} vertical={false}/>
+              <XAxis dataKey="name" tick={{fill:T.textFade,fontSize:9}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fill:T.textFade,fontSize:10}} axisLine={false} tickLine={false} allowDecimals={false}/>
+              <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:11,color:T.textDim}}/>
+              <Bar dataKey="Open"   fill={T.blue} radius={[4,4,0,0]}/>
+              <Bar dataKey="Closed" fill={T.red}  radius={[4,4,0,0]}/>
+            </BarChart>
+          </ResponsiveContainer>
+        </Panel>
+
+        <Panel title="Cases by Type" emoji="📊">
+          <ResponsiveContainer width="100%" height={190}>
+            <BarChart data={byType} layout="vertical" margin={{left:4,right:10}}>
+              <CartesianGrid strokeDasharray="3 3" stroke={T.border} horizontal={false}/>
+              <XAxis type="number" tick={{fill:T.textFade,fontSize:10}} axisLine={false} tickLine={false} allowDecimals={false}/>
+              <YAxis type="category" dataKey="name" tick={{fill:T.blue,fontSize:9}} axisLine={false} tickLine={false} width={82}/>
+              <Tooltip content={<CTip/>}/>
+              <Bar dataKey="count" radius={[0,4,4,0]}>{byType.map((_,i)=><Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]}/>)}</Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </Panel>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
-        {panel(<ResponsiveContainer width="100%" height={200}><BarChart data={byType} layout="vertical" margin={{left:10,right:16}}><CartesianGrid strokeDasharray="3 3" stroke="#0d1e30" horizontal={false}/><XAxis type="number" tick={{fill:"#2a4a6a",fontSize:11}} axisLine={false} tickLine={false} allowDecimals={false}/><YAxis type="category" dataKey="name" tick={{fill:"#94a3b8",fontSize:11}} axisLine={false} tickLine={false} width={88}/><Tooltip content={<CTip/>}/><Bar dataKey="count" radius={[0,6,6,0]}>{byType.map((_,i)=><Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]}/>)}</Bar></BarChart></ResponsiveContainer>,"Cases by Type","📊")}
-        {panel(<ResponsiveContainer width="100%" height={200}><AreaChart data={byYear}><defs><linearGradient id="gO" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1d4ed8" stopOpacity={0.35}/><stop offset="95%" stopColor="#1d4ed8" stopOpacity={0}/></linearGradient><linearGradient id="gC" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="#0d1e30"/><XAxis dataKey="year" tick={{fill:"#2a4a6a",fontSize:11}} axisLine={false} tickLine={false}/><YAxis tick={{fill:"#2a4a6a",fontSize:11}} axisLine={false} tickLine={false} allowDecimals={false}/><Tooltip content={<CTip/>}/><Legend wrapperStyle={{color:"#64748b",fontSize:12}}/><Area type="monotone" dataKey="Open" stroke="#1d4ed8" fill="url(#gO)" strokeWidth={2}/><Area type="monotone" dataKey="Closed" stroke="#10b981" fill="url(#gC)" strokeWidth={2}/></AreaChart></ResponsiveContainer>,"Trends by Year","📅")}
+
+      {/* Row 2 */}
+      <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr",gap:14,marginBottom:14}}>
+        <Panel title="Cases by Month & Status" emoji="📅">
+          <ResponsiveContainer width="100%" height={185}>
+            <AreaChart data={byMonth}>
+              <defs>
+                <linearGradient id="gO" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.blue} stopOpacity={0.2}/><stop offset="95%" stopColor={T.blue} stopOpacity={0}/></linearGradient>
+                <linearGradient id="gC" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.red}  stopOpacity={0.2}/><stop offset="95%" stopColor={T.red}  stopOpacity={0}/></linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
+              <XAxis dataKey="month" tick={{fill:T.textFade,fontSize:10}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fill:T.textFade,fontSize:10}} axisLine={false} tickLine={false} allowDecimals={false}/>
+              <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:11,color:T.textDim}}/>
+              <Area type="monotone" dataKey="Open"   stroke={T.blue} fill="url(#gO)" strokeWidth={2}/>
+              <Area type="monotone" dataKey="Closed" stroke={T.red}  fill="url(#gC)" strokeWidth={2}/>
+            </AreaChart>
+          </ResponsiveContainer>
+        </Panel>
+
+        <Panel title="Cases by Gender" emoji="⚥">
+          <ResponsiveContainer width="100%" height={185}>
+            <PieChart>
+              <Pie data={byGender} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={72} innerRadius={36} paddingAngle={3} label={({name,percent})=>`${(percent*100).toFixed(0)}%`} labelLine={false} fontSize={10}>
+                {byGender.map((_,i)=><Cell key={i} fill={CHART_COLORS[i]}/>)}
+              </Pie>
+              <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:11,color:T.textDim}}/>
+            </PieChart>
+          </ResponsiveContainer>
+        </Panel>
+
+        <Panel title="Cases by Source" emoji="📡">
+          <ResponsiveContainer width="100%" height={185}>
+            <BarChart data={bySource} layout="vertical" margin={{left:4,right:10}}>
+              <CartesianGrid strokeDasharray="3 3" stroke={T.border} horizontal={false}/>
+              <XAxis type="number" tick={{fill:T.textFade,fontSize:10}} axisLine={false} tickLine={false} allowDecimals={false}/>
+              <YAxis type="category" dataKey="name" tick={{fill:T.blue,fontSize:9}} axisLine={false} tickLine={false} width={80}/>
+              <Tooltip content={<CTip/>}/>
+              <Bar dataKey="count" radius={[0,4,4,0]}>{bySource.map((_,i)=><Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]}/>)}</Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </Panel>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-        {panel(<ResponsiveContainer width="100%" height={190}><BarChart data={byCourt}><CartesianGrid strokeDasharray="3 3" stroke="#0d1e30" vertical={false}/><XAxis dataKey="name" tick={{fill:"#2a4a6a",fontSize:10}} axisLine={false} tickLine={false}/><YAxis tick={{fill:"#2a4a6a",fontSize:11}} axisLine={false} tickLine={false} allowDecimals={false}/><Tooltip content={<CTip/>}/><Bar dataKey="count" radius={[6,6,0,0]}>{byCourt.map((_,i)=><Cell key={i} fill={PIE_COLORS[(i+3)%PIE_COLORS.length]}/>)}</Bar></BarChart></ResponsiveContainer>,"Cases by Court","🏛")}
-        {panel(<ResponsiveContainer width="100%" height={200}><RadarChart data={radar}><PolarGrid stroke="#0d1e30"/><PolarAngleAxis dataKey="subject" tick={{fill:"#3a5a7a",fontSize:10}}/><PolarRadiusAxis tick={false} axisLine={false}/><Radar name="Cases" dataKey="value" stroke="#dc2626" fill="#dc2626" fillOpacity={0.22} strokeWidth={2}/><Tooltip content={<CTip/>}/></RadarChart></ResponsiveContainer>,"Case Type Radar","🕸")}
+
+      {/* Row 3 */}
+      <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr",gap:14}}>
+        <Panel title="Cases by Region & Gender" emoji="🗺">
+          <ResponsiveContainer width="100%" height={185}>
+            <BarChart data={byRegion}>
+              <CartesianGrid strokeDasharray="3 3" stroke={T.border} vertical={false}/>
+              <XAxis dataKey="name" tick={{fill:T.textFade,fontSize:10}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fill:T.textFade,fontSize:10}} axisLine={false} tickLine={false} allowDecimals={false}/>
+              <Tooltip content={<CTip/>}/><Legend wrapperStyle={{fontSize:11,color:T.textDim}}/>
+              <Bar dataKey="Female" fill={T.red}  radius={[4,4,0,0]}/>
+              <Bar dataKey="Male"   fill={T.blue} radius={[4,4,0,0]}/>
+            </BarChart>
+          </ResponsiveContainer>
+        </Panel>
+
+        <Panel title="Cases by Torture Method" emoji="⚠">
+          <ResponsiveContainer width="100%" height={185}>
+            <BarChart data={byMethod} layout="vertical" margin={{left:4,right:10}}>
+              <CartesianGrid strokeDasharray="3 3" stroke={T.border} horizontal={false}/>
+              <XAxis type="number" tick={{fill:T.textFade,fontSize:10}} axisLine={false} tickLine={false} allowDecimals={false}/>
+              <YAxis type="category" dataKey="name" tick={{fill:T.blue,fontSize:9}} axisLine={false} tickLine={false} width={82}/>
+              <Tooltip content={<CTip/>}/>
+              <Bar dataKey="count" radius={[0,4,4,0]}>{byMethod.map((_,i)=><Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]}/>)}</Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </Panel>
       </div>
     </div>
   );
 }
 
 // ─── Case Form ────────────────────────────────────────────────────────────────
-function CaseForm({ onSave, initial, onCancel }) {
-  const blank = { caseCode:"", year:new Date().getFullYear(), court:"", region:"", county:"", caseType:"", status:"Open", closureType:"", filingDate:"", lastUpdated:new Date().toISOString().split("T")[0], outcomes:"" };
-  const [form, setForm] = useState(initial||blank);
+function CaseForm({onSave,initial,onCancel}){
+  const blank={caseCode:"",caseType:"",caseStatus:"Open",filingDate:new Date().toISOString().split("T")[0],region:"",county:"",age:"",gender:"",consentObtained:"",allegedPerpetrator:"",tortureMethod:"",source:"",verification:"",serviceOffered:"",incidentLocation:"",rightsViolated:"",outcomes:""};
+  const [form,setForm]=useState(initial||blank);
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
   const sel=(k,opts)=>(<select value={form[k]} onChange={e=>f(k,e.target.value)} style={IS}><option value="">Select…</option>{opts.map(o=><option key={o}>{o}</option>)}</select>);
-  return (
-    <div style={{ background:"#080e1e", border:"1px solid #1a3050", borderRadius:16, padding:28, maxWidth:700, margin:"0 auto" }}>
-      <h3 style={{ color:"#e2e8f0", fontFamily:"'Crimson Pro',serif", marginTop:0, fontSize:24 }}>{initial?"✏️ Edit Case":"📋 Register New Case"}</h3>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-        {[["Case Code","caseCode","text"],["Year","year","number"],["Filing Date","filingDate","date"],["Last Updated","lastUpdated","date"]].map(([label,key,type])=>(
-          <div key={key}><label style={LS}>{label}</label><input type={type} value={form[key]} onChange={e=>f(key,e.target.value)} style={IS}/></div>
-        ))}
-        <div><label style={LS}>Court</label>{sel("court",COURTS)}</div>
+  const sec=(t)=>(<p style={{color:T.blue,fontSize:10.5,textTransform:"uppercase",letterSpacing:1.4,fontWeight:800,margin:"20px 0 12px",paddingTop:16,borderTop:`1px solid ${T.border}`}}>— {t}</p>);
+
+  return(
+    <div style={{background:T.white,border:`1px solid ${T.border}`,borderRadius:16,padding:28,maxWidth:820,margin:"0 auto",boxShadow:"0 4px 24px rgba(29,78,216,0.08)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:0,paddingBottom:16,borderBottom:`2px solid ${T.border}`}}>
+        <div style={{width:5,height:28,background:`linear-gradient(180deg,${T.blue},${T.red})`,borderRadius:3}}/>
+        <h3 style={{color:T.text,fontFamily:"'Crimson Pro',serif",margin:0,fontSize:24}}>{initial?"✏️ Edit Case":"📋 Register New Case"}</h3>
+      </div>
+
+      {sec("Case Details")}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
+        <div><label style={LS}>Case Code</label><input value={form.caseCode} onChange={e=>f("caseCode",e.target.value)} placeholder="IMLU-2024-XXX" style={IS}/></div>
+        <div><label style={LS}>Case Type</label>{sel("caseType",CASE_TYPES)}</div>
+        <div><label style={LS}>Case Status</label>{sel("caseStatus",STATUSES)}</div>
+        <div><label style={LS}>Filing Date</label><input type="date" value={form.filingDate} onChange={e=>f("filingDate",e.target.value)} style={IS}/></div>
         <div><label style={LS}>Region</label>{sel("region",REGIONS)}</div>
         <div><label style={LS}>County</label>{sel("county",COUNTIES)}</div>
-        <div><label style={LS}>Case Type</label>{sel("caseType",CASE_TYPES)}</div>
-        <div><label style={LS}>Status</label>{sel("status",STATUSES)}</div>
-        <div><label style={LS}>Closure Type</label>{sel("closureType",CLOSURE_TYPES)}</div>
       </div>
-      <div style={{ marginTop:16 }}><label style={LS}>Outcomes</label><textarea value={form.outcomes} onChange={e=>f("outcomes",e.target.value)} rows={3} style={{...IS,resize:"vertical"}}/></div>
-      <div style={{ display:"flex", gap:12, marginTop:20 }}>
-        <button onClick={()=>onSave(form)} style={{ background:"linear-gradient(135deg,#1d4ed8,#1e40af)", color:"#fff", border:"none", borderRadius:9, padding:"11px 28px", fontWeight:700, cursor:"pointer", fontSize:14 }}>💾 Save Case</button>
-        <button onClick={onCancel} style={{ background:"transparent", color:"#64748b", border:"1px solid #1e293b", borderRadius:9, padding:"11px 24px", cursor:"pointer", fontSize:14 }}>Cancel</button>
+
+      {sec("Victim / Survivor")}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
+        <div><label style={LS}>Age</label><input type="number" value={form.age} onChange={e=>f("age",e.target.value)} min={1} max={120} style={IS}/></div>
+        <div><label style={LS}>Gender</label>{sel("gender",GENDERS)}</div>
+        <div><label style={LS}>Consent Obtained</label>{sel("consentObtained",CONSENT_OPTS)}</div>
+      </div>
+
+      {sec("Incident Details")}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
+        <div><label style={LS}>Alleged Perpetrator</label>{sel("allegedPerpetrator",PERPETRATORS)}</div>
+        <div><label style={LS}>Torture Method</label>{sel("tortureMethod",TORTURE_METHODS)}</div>
+        <div><label style={LS}>Rights Violated</label>{sel("rightsViolated",RIGHTS)}</div>
+        <div style={{gridColumn:"1/-1"}}><label style={LS}>Incident Location</label><input value={form.incidentLocation} onChange={e=>f("incidentLocation",e.target.value)} placeholder="e.g. Pangani Police Station, Nairobi" style={IS}/></div>
+      </div>
+
+      {sec("Case Processing")}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
+        <div><label style={LS}>Source</label>{sel("source",SOURCES)}</div>
+        <div><label style={LS}>Verification</label>{sel("verification",VERIF_OPTS)}</div>
+        <div><label style={LS}>Service Offered</label>{sel("serviceOffered",SERVICES)}</div>
+        <div><label style={LS}>Outcomes</label>{sel("outcomes",OUTCOMES_LIST)}</div>
+      </div>
+
+      <div style={{display:"flex",gap:12,marginTop:24,paddingTop:18,borderTop:`1px solid ${T.border}`}}>
+        <button onClick={()=>onSave(form)} style={{background:`linear-gradient(135deg,${T.blue},#1e40af)`,color:"#fff",border:"none",borderRadius:9,padding:"12px 30px",fontWeight:700,cursor:"pointer",fontSize:14,boxShadow:`0 4px 16px ${T.blue}30`}}>
+          💾 Save Case
+        </button>
+        <button onClick={onCancel} style={{background:"#fff",color:T.textDim,border:`1px solid ${T.border}`,borderRadius:9,padding:"12px 24px",cursor:"pointer",fontSize:14}}>
+          Cancel
+        </button>
       </div>
     </div>
   );
 }
 
 // ─── Case Table ───────────────────────────────────────────────────────────────
-function CaseTable({ cases, onEdit, onDelete }) {
-  const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState({ status:"", caseType:"", region:"" });
-  const filtered = cases.filter(c=>{
+function CaseTable({cases,onEdit,onDelete}){
+  const [search,setSearch]=useState("");
+  const [filters,setFilters]=useState({caseStatus:"",caseType:"",region:""});
+  const filtered=cases.filter(c=>{
     const q=search.toLowerCase();
-    return(!q||[c.caseCode,c.county,c.outcomes].some(s=>s.toLowerCase().includes(q)))&&(!filters.status||c.status===filters.status)&&(!filters.caseType||c.caseType===filters.caseType)&&(!filters.region||c.region===filters.region);
+    return(!q||[c.caseCode,c.incidentLocation,c.county,c.allegedPerpetrator].some(s=>String(s).toLowerCase().includes(q)))
+      &&(!filters.caseStatus||c.caseStatus===filters.caseStatus)
+      &&(!filters.caseType||c.caseType===filters.caseType)
+      &&(!filters.region||c.region===filters.region);
   });
-  return (
+  const COLS=["Case Code","Type","Status","Filed","Region","County","Age","Gender","Consent","Perpetrator","Method","Source","Verified","Service","Location","Rights","Outcomes",""];
+  return(
     <div>
-      <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
-        <input placeholder="🔍 Search cases…" value={search} onChange={e=>setSearch(e.target.value)} style={{...IS,maxWidth:260,flex:1}}/>
-        {[["status","Status",STATUSES],["caseType","Type",CASE_TYPES],["region","Region",REGIONS]].map(([k,l,opts])=>(
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center",background:T.white,border:`1px solid ${T.border}`,borderRadius:12,padding:"12px 14px",boxShadow:"0 2px 8px rgba(29,78,216,0.05)"}}>
+        <input placeholder="🔍 Search code, location, perpetrator…" value={search} onChange={e=>setSearch(e.target.value)} style={{...IS,maxWidth:280,flex:1}}/>
+        {[["caseStatus","Status",STATUSES],["caseType","Type",CASE_TYPES],["region","Region",REGIONS]].map(([k,l,opts])=>(
           <select key={k} value={filters[k]} onChange={e=>setFilters(p=>({...p,[k]:e.target.value}))} style={{...IS,maxWidth:145}}>
             <option value="">All {l}s</option>{opts.map(o=><option key={o}>{o}</option>)}
           </select>
         ))}
-        <button onClick={()=>exportExcel(filtered)} style={{ background:"#042e14", color:"#4ade80", border:"1px solid #14532d", borderRadius:8, padding:"9px 18px", cursor:"pointer", fontWeight:700, fontSize:13 }}>⬇ Export Excel ({filtered.length})</button>
+        <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+          <span style={{color:T.textFade,fontSize:12}}>{filtered.length} records</span>
+          <button onClick={()=>exportExcel(filtered)} style={{background:"#f0fdf4",color:"#16a34a",border:"1px solid #bbf7d0",borderRadius:8,padding:"9px 16px",cursor:"pointer",fontWeight:700,fontSize:12.5,whiteSpace:"nowrap"}}>⬇ Export Excel</button>
+        </div>
       </div>
-      <div style={{ overflowX:"auto", borderRadius:12, border:"1px solid #1a3050" }}>
-        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12.5 }}>
-          <thead><tr style={{ background:"#0a1220" }}>
-            {["Case Code","Year","Court","Region","County","Type","Status","Filing Date","Outcomes","Actions"].map(h=>(
-              <th key={h} style={{ color:"#2a4a6a", textAlign:"left", padding:"12px 12px", textTransform:"uppercase", fontSize:10, letterSpacing:1.2, fontWeight:800, whiteSpace:"nowrap" }}>{h}</th>
-            ))}
-          </tr></thead>
+      <div style={{overflowX:"auto",borderRadius:12,border:`1px solid ${T.border}`,boxShadow:"0 2px 12px rgba(29,78,216,0.06)"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead>
+            <tr style={{background:`linear-gradient(135deg,${T.sidebar},${T.sidebarDk})`}}>
+              {COLS.map(h=><th key={h} style={{color:"rgba(255,255,255,0.85)",textAlign:"left",padding:"12px 10px",textTransform:"uppercase",fontSize:9.5,letterSpacing:1.2,fontWeight:800,whiteSpace:"nowrap"}}>{h}</th>)}
+            </tr>
+          </thead>
           <tbody>
             {filtered.map((c,i)=>(
-              <tr key={c.id} style={{ borderTop:"1px solid #0d1e30", background:i%2===0?"#060c18":"#080e1e" }}
-                onMouseEnter={e=>e.currentTarget.style.background="#0c1e36"}
-                onMouseLeave={e=>e.currentTarget.style.background=i%2===0?"#060c18":"#080e1e"}>
-                <td style={{ padding:"10px 12px", color:"#60a5fa", fontWeight:700, fontFamily:"monospace", fontSize:12 }}>{c.caseCode}</td>
-                <td style={{ padding:"10px 12px", color:"#374151" }}>{c.year}</td>
-                <td style={{ padding:"10px 12px", color:"#94a3b8", maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.court}</td>
-                <td style={{ padding:"10px 12px", color:"#cbd5e1" }}>{c.region}</td>
-                <td style={{ padding:"10px 12px", color:"#64748b" }}>{c.county}</td>
-                <td style={{ padding:"10px 12px", color:"#fbbf24", fontWeight:600 }}>{c.caseType}</td>
-                <td style={{ padding:"10px 12px" }}><Badge status={c.status}/></td>
-                <td style={{ padding:"10px 12px", color:"#374151", whiteSpace:"nowrap" }}>{c.filingDate}</td>
-                <td style={{ padding:"10px 12px", color:"#4b5563", maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={c.outcomes}>{c.outcomes}</td>
-                <td style={{ padding:"10px 12px", whiteSpace:"nowrap" }}>
-                  <button onClick={()=>onEdit(c)} style={{ background:"transparent", color:"#60a5fa", border:"1px solid #1e3a8a", borderRadius:6, padding:"3px 10px", cursor:"pointer", marginRight:6, fontSize:11 }}>Edit</button>
-                  <button onClick={()=>onDelete(c.id)} style={{ background:"transparent", color:"#f87171", border:"1px solid #7f1d1d", borderRadius:6, padding:"3px 10px", cursor:"pointer", fontSize:11 }}>Del</button>
+              <tr key={c.id} style={{borderTop:`1px solid ${T.border}`,background:i%2===0?T.bgRow1:T.bgRow2,transition:"background 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.background=T.bgHover}
+                onMouseLeave={e=>e.currentTarget.style.background=i%2===0?T.bgRow1:T.bgRow2}>
+                <td style={{padding:"10px 10px",color:T.blue,fontWeight:700,fontFamily:"monospace",fontSize:11.5,whiteSpace:"nowrap"}}>{c.caseCode}</td>
+                <td style={{padding:"10px 10px",color:T.text,whiteSpace:"nowrap"}}>{c.caseType}</td>
+                <td style={{padding:"10px 10px",whiteSpace:"nowrap"}}><Badge status={c.caseStatus}/></td>
+                <td style={{padding:"10px 10px",color:T.textDim,whiteSpace:"nowrap"}}>{c.filingDate}</td>
+                <td style={{padding:"10px 10px",color:T.textMid,whiteSpace:"nowrap"}}>{c.region}</td>
+                <td style={{padding:"10px 10px",color:T.textDim,whiteSpace:"nowrap"}}>{c.county}</td>
+                <td style={{padding:"10px 10px",color:T.textDim,textAlign:"center"}}>{c.age}</td>
+                <td style={{padding:"10px 10px",color:T.textMid,whiteSpace:"nowrap"}}>{c.gender}</td>
+                <td style={{padding:"10px 10px",color:c.consentObtained==="Yes"?"#16a34a":c.consentObtained==="No"?"#dc2626":"#d97706",fontWeight:600}}>{c.consentObtained}</td>
+                <td style={{padding:"10px 10px",color:T.red,whiteSpace:"nowrap",maxWidth:130,overflow:"hidden",textOverflow:"ellipsis"}}>{c.allegedPerpetrator}</td>
+                <td style={{padding:"10px 10px",color:T.textDim,whiteSpace:"nowrap",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis"}}>{c.tortureMethod}</td>
+                <td style={{padding:"10px 10px",color:T.textDim,whiteSpace:"nowrap"}}>{c.source}</td>
+                <td style={{padding:"10px 10px",color:c.verification==="Verified"?"#16a34a":c.verification==="Unverified"?"#dc2626":"#d97706",fontWeight:600,whiteSpace:"nowrap"}}>{c.verification}</td>
+                <td style={{padding:"10px 10px",color:T.textDim,whiteSpace:"nowrap",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis"}}>{c.serviceOffered}</td>
+                <td style={{padding:"10px 10px",color:T.textDim,whiteSpace:"nowrap",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis"}} title={c.incidentLocation}>{c.incidentLocation}</td>
+                <td style={{padding:"10px 10px",color:T.textDim,whiteSpace:"nowrap",maxWidth:130,overflow:"hidden",textOverflow:"ellipsis"}}>{c.rightsViolated}</td>
+                <td style={{padding:"10px 10px",color:T.textDim,whiteSpace:"nowrap"}}>{c.outcomes}</td>
+                <td style={{padding:"10px 10px",whiteSpace:"nowrap"}}>
+                  <button onClick={()=>onEdit(c)} style={{background:T.bluePale,color:T.blue,border:`1px solid ${T.blueXlt}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",marginRight:5,fontSize:11,fontWeight:600}}>Edit</button>
+                  <button onClick={()=>onDelete(c.id)} style={{background:T.redPale,color:T.red,border:"1px solid #fecaca",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,fontWeight:600}}>Del</button>
                 </td>
               </tr>
             ))}
-            {filtered.length===0&&<tr><td colSpan={10} style={{ padding:40, textAlign:"center", color:"#1e3a5f" }}>No cases found.</td></tr>}
+            {!filtered.length&&<tr><td colSpan={COLS.length} style={{padding:50,textAlign:"center",color:T.textFade}}><div style={{fontSize:32,marginBottom:8}}>🔍</div>No cases found.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -265,28 +434,96 @@ function CaseTable({ cases, onEdit, onDelete }) {
 }
 
 // ─── Reports ──────────────────────────────────────────────────────────────────
-function ReportsPage() {
-  const [search, setSearch] = useState("");
-  const typeClr = { "Annual Report":"#1d4ed8","Research":"#8b5cf6","Policy Paper":"#10b981","Quarterly Bulletin":"#f59e0b" };
-  const filtered = SEED_REPORTS.filter(r=>!search||[r.title,r.org,r.type,r.description].some(s=>s.toLowerCase().includes(search.toLowerCase())));
-  return (
+function ReportsPage(){
+  const [reports,setReports]=useState([
+    {id:1,title:"Annual Justice Report 2023",        org:"IMLU Research Unit",            date:"2024-02-01",type:"Annual Report",     size:"2.4 MB",ext:"pdf"},
+    {id:2,title:"Gender & Access to Justice Study",  org:"International Justice Monitor", date:"2023-11-15",type:"Research",          size:"1.1 MB",ext:"pdf"},
+    {id:3,title:"Court Backlog Reduction Strategy",  org:"Judiciary Performance Unit",    date:"2024-05-10",type:"Policy Paper",      size:"820 KB", ext:"docx"},
+    {id:4,title:"Q1 2024 Case Statistics Bulletin",  org:"NCAJ",                          date:"2024-04-30",type:"Quarterly Bulletin",size:"540 KB", ext:"pdf"},
+    {id:5,title:"Access to Justice in Arid Regions", org:"UNHCR Kenya",                  date:"2024-01-20",type:"Research",          size:"3.2 MB",ext:"pdf"},
+  ]);
+  const [search,setSearch]=useState("");
+  const [showForm,setShowForm]=useState(false);
+  const [newRpt,setNewRpt]=useState({title:"",org:"",type:"Annual Report",file:null});
+  const fileRef=useRef();
+  const typeClr={"Annual Report":T.blue,"Research":T.red,"Policy Paper":"#16a34a","Quarterly Bulletin":"#d97706"};
+  const extIcon={pdf:"📄",docx:"📝",xlsx:"📊",pptx:"📋"};
+  const filtered=reports.filter(r=>!search||[r.title,r.org,r.type].some(s=>s.toLowerCase().includes(search.toLowerCase())));
+
+  const handleUpload=()=>{
+    if(!newRpt.title||!newRpt.file)return;
+    const ext=newRpt.file.name.split(".").pop().toLowerCase();
+    setReports(p=>[...p,{id:Date.now(),title:newRpt.title,org:newRpt.org||"IMLU",date:new Date().toISOString().split("T")[0],type:newRpt.type,size:`${(newRpt.file.size/1024).toFixed(0)} KB`,ext}]);
+    setNewRpt({title:"",org:"",type:"Annual Report",file:null});
+    setShowForm(false);
+  };
+
+  return(
     <div>
-      <h2 style={{ fontFamily:"'Crimson Pro',serif", fontSize:32, color:"#e2e8f0", marginBottom:6 }}>Published Reports</h2>
-      <p style={{ color:"#2a4a6a", marginBottom:20, fontSize:13 }}>Access IMLU research publications and policy reports.</p>
-      <input placeholder="🔍 Search reports…" value={search} onChange={e=>setSearch(e.target.value)} style={{...IS,maxWidth:360,marginBottom:22}}/>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))", gap:16 }}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:22,paddingBottom:18,borderBottom:`2px solid ${T.border}`}}>
+        <div>
+          <h2 style={{fontFamily:"'Crimson Pro',serif",fontSize:30,color:T.text,margin:0}}>Reports & Publications</h2>
+          <p style={{color:T.textDim,fontSize:13,marginTop:5}}>Upload and manage IMLU research publications and policy reports</p>
+        </div>
+        <button onClick={()=>setShowForm(!showForm)} style={{background:`linear-gradient(135deg,${T.blue},#1e40af)`,color:"#fff",border:"none",borderRadius:10,padding:"11px 22px",cursor:"pointer",fontWeight:700,fontSize:13,boxShadow:`0 4px 16px ${T.blue}30`}}>
+          ⬆ Upload Report
+        </button>
+      </div>
+
+      {showForm&&(
+        <div style={{background:T.white,border:`2px solid ${T.blue}`,borderRadius:14,padding:24,marginBottom:22,boxShadow:`0 4px 20px ${T.blue}15`}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:12,borderBottom:`1px solid ${T.border}`}}>
+            <div style={{width:4,height:24,background:`linear-gradient(180deg,${T.blue},${T.red})`,borderRadius:2}}/>
+            <h3 style={{color:T.text,fontFamily:"'Crimson Pro',serif",margin:0,fontSize:20}}>Upload New Report</h3>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
+            <div><label style={LS}>Report Title *</label><input value={newRpt.title} onChange={e=>setNewRpt(p=>({...p,title:e.target.value}))} placeholder="Report title…" style={IS}/></div>
+            <div><label style={LS}>Organisation</label><input value={newRpt.org} onChange={e=>setNewRpt(p=>({...p,org:e.target.value}))} placeholder="Publishing organisation…" style={IS}/></div>
+            <div><label style={LS}>Report Type</label>
+              <select value={newRpt.type} onChange={e=>setNewRpt(p=>({...p,type:e.target.value}))} style={IS}>
+                {["Annual Report","Research","Policy Paper","Quarterly Bulletin","Other"].map(t=><option key={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{marginBottom:16}}>
+            <label style={LS}>File *</label>
+            <div onClick={()=>fileRef.current.click()} style={{border:`2px dashed ${T.blue}`,borderRadius:10,padding:"28px",textAlign:"center",cursor:"pointer",background:T.bluePale,transition:"all 0.2s"}}
+              onMouseEnter={e=>e.currentTarget.style.background=T.blueXlt+"44"}
+              onMouseLeave={e=>e.currentTarget.style.background=T.bluePale}>
+              {newRpt.file
+                ?<p style={{color:T.blue,fontWeight:700,margin:0}}>✅ {newRpt.file.name} ({(newRpt.file.size/1024).toFixed(0)} KB)</p>
+                :<div><p style={{color:T.blue,margin:0,fontWeight:600}}>📁 Click to browse file</p><p style={{color:T.textFade,margin:"6px 0 0",fontSize:11}}>PDF, DOCX, XLSX, PPTX supported</p></div>}
+            </div>
+            <input ref={fileRef} type="file" accept=".pdf,.docx,.xlsx,.pptx,.doc,.xls" onChange={e=>setNewRpt(p=>({...p,file:e.target.files[0]}))} style={{display:"none"}}/>
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={handleUpload} style={{background:`linear-gradient(135deg,${T.blue},#1e40af)`,color:"#fff",border:"none",borderRadius:9,padding:"11px 26px",fontWeight:700,cursor:"pointer",fontSize:14,boxShadow:`0 4px 16px ${T.blue}30`}}>⬆ Upload</button>
+            <button onClick={()=>setShowForm(false)} style={{background:"#fff",color:T.textDim,border:`1px solid ${T.border}`,borderRadius:9,padding:"11px 22px",cursor:"pointer",fontSize:14}}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <input placeholder="🔍 Search reports…" value={search} onChange={e=>setSearch(e.target.value)} style={{...IS,maxWidth:360,marginBottom:20}}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:14}}>
         {filtered.map(r=>{
-          const c=typeClr[r.type]||"#1d4ed8";
-          return (
-            <div key={r.id} style={{ background:"#080e1e", border:"1px solid #1a3050", borderRadius:14, padding:22, display:"flex", flexDirection:"column", gap:10 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <span style={{ background:`${c}18`, color:c, border:`1px solid ${c}40`, borderRadius:20, padding:"3px 12px", fontSize:10.5, fontWeight:700 }}>{r.type}</span>
-                <span style={{ color:"#1e3a5f", fontSize:11 }}>{r.date}</span>
+          const c=typeClr[r.type]||T.blue;
+          return(
+            <div key={r.id} style={{background:T.white,border:`1px solid ${T.border}`,borderRadius:14,padding:20,display:"flex",flexDirection:"column",gap:10,transition:"all 0.2s",boxShadow:"0 2px 10px rgba(29,78,216,0.06)",borderTop:`3px solid ${c}`}}
+              onMouseEnter={e=>{e.currentTarget.style.boxShadow=`0 6px 20px ${c}25`;e.currentTarget.style.transform="translateY(-2px)"}}
+              onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 2px 10px rgba(29,78,216,0.06)";e.currentTarget.style.transform="none"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{background:`${c}15`,color:c,border:`1px solid ${c}40`,borderRadius:20,padding:"3px 12px",fontSize:10.5,fontWeight:700}}>{r.type}</span>
+                <span style={{color:T.textFade,fontSize:20}}>{extIcon[r.ext]||"📄"}</span>
               </div>
-              <h4 style={{ color:"#e2e8f0", fontFamily:"'Crimson Pro',serif", margin:0, fontSize:17, lineHeight:1.35 }}>{r.title}</h4>
-              <p style={{ color:"#2a4a6a", fontSize:12, margin:0 }}>by {r.org}</p>
-              <p style={{ color:"#374151", fontSize:13, margin:0, lineHeight:1.6, flex:1 }}>{r.description}</p>
-              <a href="#" onClick={e=>e.preventDefault()} style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#0c1e36", color:"#60a5fa", border:"1px solid #1e3a8a", padding:"8px 16px", borderRadius:8, textDecoration:"none", fontSize:13, fontWeight:600 }}>⬇ Download / View</a>
+              <h4 style={{color:T.text,fontFamily:"'Crimson Pro',serif",margin:0,fontSize:17,lineHeight:1.35}}>{r.title}</h4>
+              <p style={{color:T.textDim,fontSize:12,margin:0}}>{r.org}</p>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:T.textFade}}><span>📅 {r.date}</span><span>💾 {r.size}</span></div>
+              <button style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:T.bluePale,color:T.blue,border:`1px solid ${T.blueXlt}`,padding:"9px 16px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",width:"100%",transition:"background 0.2s"}}
+                onMouseEnter={e=>e.currentTarget.style.background=T.blueXlt}
+                onMouseLeave={e=>e.currentTarget.style.background=T.bluePale}>
+                ⬇ Download / View
+              </button>
+              <button onClick={()=>setReports(p=>p.filter(x=>x.id!==r.id))} style={{background:"transparent",color:T.red,border:"none",cursor:"pointer",fontSize:11,textAlign:"right",padding:0}}>🗑 Remove</button>
             </div>
           );
         })}
@@ -296,128 +533,125 @@ function ReportsPage() {
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [showLogin, setShowLogin] = useState(false);
-  const [view, setView] = useState("dashboard");
-  const [cases, setCases] = useState(SEED_CASES);
-  const [editing, setEditing] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+export default function App(){
+  const [user,setUser]        =useState(null);
+  const [view,setView]        =useState("dashboard");
+  const [cases,setCases]      =useState(SEED_CASES);
+  const [editing,setEditing]  =useState(null);
+  const [showForm,setShowForm]=useState(false);
 
-  // Show IMLU login page
-  if (showLogin && !user) {
-    return <IMLULogin onLogin={u => { setUser(u); setShowLogin(false); setView("cases"); }} />;
-  }
+  if(!user) return <IMLULogin onLogin={u=>{setUser(u);setView("dashboard");}}/>;
 
-  const publicNav = [{ key:"dashboard", label:"Dashboard", icon:"◈" }, { key:"reports", label:"Reports", icon:"📄" }];
-  const staffNav  = [...publicNav, { key:"cases", label:"Case Registry", icon:"⊞" }, { key:"register", label:"Register Case", icon:"+" }];
-  const navItems  = user ? staffNav : publicNav;
+  const NAV=[
+    {key:"dashboard",label:"Dashboard",    icon:"◈"},
+    {key:"cases",    label:"Case Registry",icon:"⊞"},
+    {key:"register", label:"Register Case",icon:"+"},
+    {key:"reports",  label:"Reports",      icon:"📄"},
+  ];
 
-  const saveCase = form => {
-    if (editing) setCases(p=>p.map(c=>c.id===editing.id?{...form,id:editing.id}:c));
+  const saveCase=form=>{
+    if(editing) setCases(p=>p.map(c=>c.id===editing.id?{...form,id:editing.id}:c));
     else setCases(p=>[...p,{...form,id:Date.now()}]);
-    setEditing(null); setShowForm(false); setView("cases");
+    setEditing(null);setShowForm(false);setView("cases");
   };
-  const delCase  = id => { if(window.confirm("Delete this case?")) setCases(p=>p.filter(c=>c.id!==id)); };
-  const go       = v  => { setView(v); setShowForm(false); setEditing(null); };
+  const delCase=id=>{if(window.confirm("Delete this case?"))setCases(p=>p.filter(c=>c.id!==id));};
+  const go=v=>{setView(v);setShowForm(false);setEditing(null);};
 
-  return (
+  return(
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
-        body{background:#040810;font-family:'DM Sans',sans-serif;color:#e2e8f0}
-        input,select,textarea{font-family:'DM Sans',sans-serif;transition:border-color 0.2s}
-        input:focus,select:focus,textarea:focus{border-color:#1d4ed8!important;outline:none;box-shadow:0 0 0 3px #1d4ed810}
-        ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#080e1e}::-webkit-scrollbar-thumb{background:#1a3050;border-radius:4px}
-        button{font-family:'DM Sans',sans-serif;transition:opacity 0.15s,transform 0.1s}button:hover{opacity:0.85}button:active{transform:scale(0.97)}
+        body{background:${T.bg};font-family:'DM Sans',sans-serif;color:${T.text}}
+        input,select,textarea{font-family:'DM Sans',sans-serif;transition:border-color 0.2s;color:${T.text}}
+        input:focus,select:focus,textarea:focus{border-color:${T.blue}!important;outline:none;box-shadow:0 0 0 3px ${T.blue}18}
+        ::-webkit-scrollbar{width:5px;height:5px}
+        ::-webkit-scrollbar-track{background:${T.bg}}
+        ::-webkit-scrollbar-thumb{background:${T.blueXlt};border-radius:4px}
+        ::-webkit-scrollbar-thumb:hover{background:${T.blue}}
+        button{font-family:'DM Sans',sans-serif;cursor:pointer}
         @keyframes appFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         .fadein{animation:appFadeIn 0.3s ease both}
+        .navbtn:hover{background:rgba(255,255,255,0.12)!important}
       `}</style>
-      <div style={{ display:"flex", minHeight:"100vh" }}>
 
-        {/* Sidebar */}
-        <aside style={{ width:228, background:"#060c1a", borderRight:"1px solid #0c1e30", display:"flex", flexDirection:"column", position:"fixed", top:0, bottom:0, left:0, zIndex:50 }}>
-          {/* Red+Blue top stripe */}
-          <div style={{ height:4, background:"linear-gradient(90deg,#dc2626,#1d4ed8)" }}/>
-          <div style={{ padding:"22px 22px 16px", display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ width:38, height:38, background:"linear-gradient(135deg,#dc2626,#1d4ed8)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>⚖</div>
+      <div style={{display:"flex",minHeight:"100vh"}}>
+
+        {/* ── Sidebar (deep blue) ── */}
+        <aside style={{width:232,background:`linear-gradient(180deg,${T.sidebar} 0%,${T.sidebarDk} 100%)`,borderRight:"none",display:"flex",flexDirection:"column",position:"fixed",top:0,bottom:0,left:0,zIndex:50,boxShadow:"4px 0 24px rgba(29,78,216,0.25)"}}>
+          {/* Red+white top stripe */}
+          <div style={{height:4,background:`linear-gradient(90deg,${T.red},#fff,${T.blue})`}}/>
+
+          {/* Logo */}
+          <div style={{padding:"20px 20px 14px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
+            <div style={{width:40,height:40,background:"rgba(255,255,255,0.15)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,border:"1px solid rgba(255,255,255,0.2)"}}>⚖</div>
             <div>
-              <h1 style={{ fontSize:15, fontFamily:"'Crimson Pro',serif", color:"#e2e8f0", fontWeight:700, lineHeight:1.2 }}>IMLU</h1>
-              <p style={{ color:"#1e3a5f", fontSize:9, textTransform:"uppercase", letterSpacing:1.4, fontWeight:700 }}>Case Registrar</p>
+              <h1 style={{fontSize:16,fontFamily:"'Crimson Pro',serif",color:"#fff",fontWeight:700,lineHeight:1.2}}>IMLU</h1>
+              <p style={{color:"rgba(255,255,255,0.5)",fontSize:9,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700}}>Case Registrar</p>
             </div>
           </div>
 
-          {!user && (
-            <div style={{ margin:"0 12px 14px", background:"#0a1628", border:"1px solid #1a3050", borderRadius:10, padding:"12px 14px" }}>
-              <p style={{ color:"#1e3a5f", fontSize:11, lineHeight:1.55, marginBottom:10 }}>🔒 Case Registry requires staff login.</p>
-              <button onClick={()=>setShowLogin(true)} style={{ width:"100%", background:"linear-gradient(135deg,#dc2626,#b91c1c)", color:"#fff", border:"none", borderRadius:7, padding:"8px", fontWeight:700, cursor:"pointer", fontSize:12 }}>Staff Login →</button>
-            </div>
-          )}
-
-          <nav style={{ flex:1 }}>
-            {navItems.map(n=>(
-              <button key={n.key} onClick={()=>go(n.key)}
-                style={{ width:"100%", background:view===n.key?"#0c1e36":"transparent", color:view===n.key?"#dc2626":"#2a4a6a", border:"none", textAlign:"left", padding:"11px 22px", cursor:"pointer", fontSize:13.5, fontWeight:view===n.key?700:500, display:"flex", gap:10, alignItems:"center", borderLeft:view===n.key?"3px solid #dc2626":"3px solid transparent", transition:"all 0.2s" }}>
-                <span style={{ fontSize:15 }}>{n.icon}</span>{n.label}
+          {/* Nav */}
+          <nav style={{flex:1,paddingTop:10}}>
+            <p style={{color:"rgba(255,255,255,0.35)",fontSize:9,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,padding:"8px 20px 4px"}}>Navigation</p>
+            {NAV.map(n=>(
+              <button key={n.key} onClick={()=>go(n.key)} className="navbtn"
+                style={{width:"100%",background:view===n.key?"rgba(255,255,255,0.15)":"transparent",color:view===n.key?"#fff":"rgba(255,255,255,0.55)",border:"none",textAlign:"left",padding:"11px 20px",fontSize:13.5,fontWeight:view===n.key?700:400,display:"flex",gap:10,alignItems:"center",borderLeft:view===n.key?"3px solid #fff":"3px solid transparent",transition:"all 0.2s"}}>
+                <span style={{fontSize:15,opacity:0.9}}>{n.icon}</span>{n.label}
+                {n.key==="cases"&&<span style={{marginLeft:"auto",background:"rgba(255,255,255,0.2)",color:"#fff",fontSize:10,fontWeight:800,padding:"1px 7px",borderRadius:20}}>{cases.length}</span>}
               </button>
             ))}
           </nav>
 
-          <div style={{ padding:"14px 18px", borderTop:"1px solid #0c1e30" }}>
-            {user ? (
-              <div>
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-                  <div style={{ width:32, height:32, background:"linear-gradient(135deg,#dc2626,#1d4ed8)", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:700, color:"#fff" }}>{user.name[0]}</div>
-                  <div>
-                    <p style={{ color:"#94a3b8", fontSize:12.5, fontWeight:600 }}>{user.name}</p>
-                    <p style={{ color:"#dc2626", fontSize:10.5, textTransform:"uppercase", letterSpacing:0.8 }}>{user.role}</p>
-                  </div>
-                </div>
-                <button onClick={()=>{setUser(null);go("dashboard");}} style={{ color:"#ef4444", background:"transparent", border:"1px solid #4c1414", borderRadius:6, cursor:"pointer", fontSize:11.5, padding:"5px 12px" }}>Logout</button>
+          {/* User info */}
+          <div style={{padding:"14px 18px",borderTop:"1px solid rgba(255,255,255,0.1)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <div style={{width:34,height:34,background:`linear-gradient(135deg,${T.red},#fff)`,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:T.red,flexShrink:0,border:"2px solid rgba(255,255,255,0.3)"}}>{user.name[0]}</div>
+              <div style={{overflow:"hidden"}}>
+                <p style={{color:"#fff",fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name}</p>
+                <p style={{color:"rgba(255,255,255,0.5)",fontSize:10.5,textTransform:"uppercase",letterSpacing:0.8,fontWeight:600}}>{user.role}</p>
               </div>
-            ) : <p style={{ color:"#0c1e30", fontSize:11 }}>Public view · Read only</p>}
+            </div>
+            <button onClick={()=>setUser(null)} style={{color:T.red,background:"rgba(220,38,38,0.15)",border:"1px solid rgba(220,38,38,0.3)",borderRadius:6,fontSize:12,padding:"6px 14px",width:"100%",fontWeight:600}}>
+              ↩ Sign Out
+            </button>
           </div>
         </aside>
 
-        {/* Main Content */}
-        <main className="fadein" style={{ marginLeft:228, flex:1, padding:"32px 30px 56px", minHeight:"100vh" }}>
+        {/* ── Main Content ── */}
+        <main className="fadein" style={{marginLeft:232,flex:1,padding:"28px 30px 60px",minHeight:"100vh",background:T.bg}}>
+          {view==="dashboard"&&<Dashboard cases={cases}/>}
 
-          {view==="dashboard" && <Dashboard cases={cases}/>}
-
-          {view==="cases" && !user && (
-            <div style={{ textAlign:"center", paddingTop:90 }}>
-              <div style={{ fontSize:64, marginBottom:18, opacity:0.5 }}>🔒</div>
-              <h2 style={{ fontFamily:"'Crimson Pro',serif", color:"#e2e8f0", fontSize:30, marginBottom:10 }}>Staff Access Required</h2>
-              <p style={{ color:"#2a4a6a", marginBottom:28, fontSize:14 }}>The Case Registry is restricted to authorised IMLU staff only.</p>
-              <button onClick={()=>setShowLogin(true)} style={{ background:"linear-gradient(135deg,#dc2626,#b91c1c)", color:"#fff", border:"none", borderRadius:10, padding:"13px 34px", fontWeight:700, fontSize:15, cursor:"pointer" }}>Staff Login →</button>
-            </div>
-          )}
-
-          {view==="cases" && user && (
+          {view==="cases"&&(
             <div>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:22 }}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:22,paddingBottom:18,borderBottom:`2px solid ${T.border}`}}>
                 <div>
-                  <h2 style={{ fontFamily:"'Crimson Pro',serif", fontSize:32, color:"#e2e8f0" }}>Case Registry</h2>
-                  <p style={{ color:"#2a4a6a", fontSize:13, marginTop:4 }}>Full dataset · Staff restricted · Excel export enabled</p>
+                  <h2 style={{fontFamily:"'Crimson Pro',serif",fontSize:30,color:T.text,margin:0}}>Case Registry</h2>
+                  <p style={{color:T.textDim,fontSize:13,marginTop:5}}>All case records · Staff restricted · Full IMLU dataset</p>
                 </div>
-                <button onClick={()=>{setEditing(null);setShowForm(false);go("register");}} style={{ background:"linear-gradient(135deg,#1d4ed8,#1e40af)", color:"#fff", border:"none", borderRadius:10, padding:"11px 22px", cursor:"pointer", fontWeight:700, fontSize:13.5 }}>+ New Case</button>
+                <button onClick={()=>go("register")} style={{background:`linear-gradient(135deg,${T.blue},#1e40af)`,color:"#fff",border:"none",borderRadius:10,padding:"11px 22px",fontWeight:700,fontSize:13.5,boxShadow:`0 4px 16px ${T.blue}30`}}>
+                  + New Case
+                </button>
               </div>
               <CaseTable cases={cases} onEdit={c=>{setEditing(c);setShowForm(true);go("register");}} onDelete={delCase}/>
             </div>
           )}
 
-          {view==="register" && user && (
+          {view==="register"&&(
             showForm||editing
-              ? <CaseForm initial={editing} onSave={saveCase} onCancel={()=>{setShowForm(false);setEditing(null);go("cases");}}/>
-              : <div>
-                  <h2 style={{ fontFamily:"'Crimson Pro',serif", fontSize:32, color:"#e2e8f0", marginBottom:22 }}>Register a Case</h2>
-                  <button onClick={()=>setShowForm(true)} style={{ background:"linear-gradient(135deg,#1d4ed8,#1e40af)", color:"#fff", border:"none", borderRadius:10, padding:"13px 30px", cursor:"pointer", fontWeight:700, fontSize:15 }}>📋 Open Case Form</button>
+              ?<CaseForm initial={editing} onSave={saveCase} onCancel={()=>{setShowForm(false);setEditing(null);go("cases");}}/>
+              :<div>
+                <div style={{paddingBottom:18,marginBottom:22,borderBottom:`2px solid ${T.border}`}}>
+                  <h2 style={{fontFamily:"'Crimson Pro',serif",fontSize:30,color:T.text,margin:0}}>Register a Case</h2>
+                  <p style={{color:T.textDim,fontSize:13,marginTop:5}}>Add a new case to the IMLU registry</p>
                 </div>
+                <button onClick={()=>setShowForm(true)} style={{background:`linear-gradient(135deg,${T.blue},#1e40af)`,color:"#fff",border:"none",borderRadius:10,padding:"13px 30px",fontWeight:700,fontSize:15,boxShadow:`0 4px 16px ${T.blue}30`}}>
+                  📋 Open Case Form
+                </button>
+              </div>
           )}
 
-          {view==="reports" && <ReportsPage/>}
-
+          {view==="reports"&&<ReportsPage/>}
         </main>
       </div>
     </>
