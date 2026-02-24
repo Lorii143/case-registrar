@@ -40,6 +40,10 @@ const CASE_TYPES   = ["Criminal","Civil","Family","Labour","Constitutional","Com
 const STATUSES     = ["Open","Closed","Adjourned","On Appeal"];
 const CLOSURE_TYPES= ["Settled","Judgment","Withdrawn","Dismissed","Acquittal","Conviction"];
 const PIE_COLORS   = ["#1d4ed8","#dc2626","#10b981","#f59e0b","#8b5cf6","#06b6d4","#f43f5e","#6366f1"];
+const USERS        = [
+  { username:"admin", password:"admin123", role:"admin", name:"Admin User" },
+  { username:"staff", password:"staff123", role:"staff", name:"Staff User" },
+];
 
 // ─── Excel Export ─────────────────────────────────────────────────────────────
 function exportExcel(cases) {
